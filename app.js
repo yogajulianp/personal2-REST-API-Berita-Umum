@@ -3,10 +3,16 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+
+var indexRouter = require("./routes/index2");
+var usersRouter = require("./routes/user2");
+var newsRouter = require("./routes/news2");
 
 var app = express();
+
+// passport
+app.use(passport.initialize());
+require('./auth');
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -24,7 +30,9 @@ db.sequelize
     console.log("error: " + err.message);
   });
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+
+app.use("/", newsRouter);
+app.use("/users", usersRouter);
+app.use("/index", indexRouter);
 
 module.exports = app;

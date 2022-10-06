@@ -1,75 +1,144 @@
-var express = require("express");
+var express = require('express');
 var router = express.Router();
 
-const db = require("../models");
+var bcrypt = require('bcryptjs');
+const db = require('../models');
 const User = db.users;
 const Op = db.Sequelize.Op;
 
-var bcrypt = require("bcryptjs");
-const auth = require("../auth");
+const jwt = require('jsonwebtoken');
+//const fs = require('fs');
+const config = require('../config');
+const passport = require('passport');
 
-
-//addUser
-router.get("/register", function (req, res, next) {
-  res.render("registerForm", { title: "Register" });
+router.get('/', 
+    passport.authenticate("jwt",{session:false}),   
+    function(req, res, next) {
+      
+	User.findAll({
+    attributes: ['name', 'email','username']
+  })
+	.then(data => {
+		res.send(data);
+	})
+	.catch(err => {
+		res.json({
+			info: "Error",
+			message: err.message
+		});
+	});
 });
 
-//add User
-router.post("/register", function (req, res, next) {
-  var hashpass = bcrypt.hashSync(req.body.password, 10);
-  var users = {
-    name: req.body.name,
-    email: req.body.email,
+router.post('/register', function(req, res, next) {
+  if(!(req.body.name && 
+      req.body.username && req.body.email &&
+      req.body.password)) {
+
+       return res.status(400).json({
+          message: "data tidak lengkap"
+        })
+  }
+  var hashpass = bcrypt.hashSync(req.body.password, 8);
+	var user = {
+		name: req.body.name,
     username: req.body.username,
-    password: hashpass,
-  };
-  User.create(users)
-    .then((addData) => {
-      res.redirect("/users/login");
-    })
-    .catch((err) => {
-      res.redirect("/users/register");
+    email: req.body.email,
+    password: hashpass
+	}
+	User.create(user)
+	.then(data => {
+		res.send( {
+      id: data.id,
+      name: req.body.name,
+      username: req.body.username,
+      email: req.body.email
     });
+	})
+	.catch(err => {
+		res.json({
+			info: "Error",
+			message: err.message
+		});
+	});
 });
 
-//login
-router.get("/login", function (req, res, next) {
-  res.render("loginForm", { title: "Register" });
-});
-router.post("/login", function (req, res, next) {
-  User.findOne({ where: { username: req.body.username } })
-    .then((data) => {
-      console.log(loginValid);
-      if (data) {
-        var loginValid = bcrypt.compareSync(req.body.password, data.password);
-        console.log(loginValid);
-        if (loginValid) {
-          // simpan session
-          //console.log("req.session" + req.session)
-          req.session.username = req.body.username;
-          req.session.islogin = true;
-          //console.log("req.session setelah diisi data:" + req.session)
+router.post('/update', function(req, res, next) {
+  if(!(req.body.name && 
+      req.body.email &&
+      req.body.username)) {
 
-          res.redirect("/");
-        } else {
-          res.redirect("/users/login");
-        }
-      } else {
-        res.redirect("/users/login");
+       return res.status(400).json({
+          message: "data tidak lengkap"
+        })
+  }
+	var user = {
+		name: req.body.name,    
+    email: req.body.email
+	}
+	User.update(user, {
+		where: {username: req.body.username}
+	})
+	.then(num => {
+		res.json(
+      {
+        username: req.body.username,
+        name: req.body.name,    
+        email: req.body.email
       }
-    })
-    .catch((err) => {
-      res.redirect("/users/login");
-    });
+    )
+		
+	})
+	.catch(err => {
+		res.json({
+			info: "Error",
+			message: err.message
+		});
+	});
 });
 
-router.get("/belumLogin", function (req, res, next) {
-  res.render("alertNoLogin", { title: "Belum Login" });
-});
+router.post('/login', function(req, res, next) {
+  if(!(req.body.username && req.body.password)) {
 
-router.get("/logout", function (req, res, next) {
-  req.session.destroy();
-  res.redirect("/users/login");
+       return res.status(400).json({
+          message: "data tidak lengkap"
+        })
+  }
+  User.findOne({ where: { username: req.body.username } })
+	.then(data => {
+		if(data) {
+			var loginValid = bcrypt.compareSync(req.body.password, data.password);
+			if(loginValid) {
+
+        var payload = {
+          userid: data.id,
+          username: req.body.username
+        };
+        //const key = fs.readFileSync('D:/Belajar Software Engineer/Node JS Rapid Tech/projectpersonal2-REST-API-webBerita-yogaprasutiyo/certs/key.pem');
+        let token = jwt.sign(
+          payload,
+          config.secret, {
+            expiresIn: '3h'
+          }
+        );
+        let dt = new Date(); // now
+        dt.setHours(dt.getHours() + 3); // now + 3h
+				res.json({
+          success: true,
+          token: token,
+          expired: dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString()
+        });
+			}else{
+				res.json({login:"username/password salah"});
+			}
+		}else {
+			res.json({login:"username/password salah"});
+		}
+	})
+	.catch(err => {
+    console.log(err);
+    res.json({message:"terjadi kegagalan sistem"});
+	});	
+	
 });
 
 module.exports = router;
