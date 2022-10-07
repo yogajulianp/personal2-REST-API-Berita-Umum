@@ -13,7 +13,7 @@ const config = require("../config");
 const passport = require("passport");
 
 //get all
-router.get("/", function (req, res, next) {
+router.get("/all", function (req, res, next) {
   News.findAll()
     .then((datanews) => {
       res.send(datanews);
