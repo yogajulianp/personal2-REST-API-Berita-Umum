@@ -117,11 +117,11 @@ router.post('/login', function(req, res, next) {
         let token = jwt.sign(
           payload,
           config.secret, {
-            expiresIn: '3h'
+            expiresIn: '24h'
           }
         );
         let dt = new Date(); // now
-        dt.setHours(dt.getHours() + 3); // now + 3h
+        dt.setHours(dt.getHours() + 24); // now + 3h
 				res.json({
           success: true,
           token: token,
